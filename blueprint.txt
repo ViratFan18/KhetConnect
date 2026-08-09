@@ -1,0 +1,678 @@
+🌾
+KhetConnect
+Hyperlocal Farmer–Labour Marketplace
+Connecting farmers with skilled agricultural labourers within 5 km
+  Master Project Blueprint  
+Version: 1.0  |  Phase 1
+Deadline: July 11, 2025
+Stack: Spring Boot 3 + React 18
+Timeline: 28 Days
+1. Project Overview
+KhetConnect is a hyperlocal mobile-first web application that digitally connects farmers who need agricultural labourers with skilled workers available within a 5 km radius. The platform operates in Telugu and English, supports push notifications via FCM, and maintains a transparent work history and rating system for both farmers and labourers.
+1.1 Problem Statement
+🚨 The Real Problem
+Farmers in rural Andhra Pradesh (Naidupeta, Nellore district) struggle to find daily wage labourers during critical crop seasons.
+Labourers have no reliable way to know which farmers need workers near them.
+This results in: crop losses for farmers, missed wages for labourers, and inefficiency for the local economy.
+No existing digital platform solves this hyperlocal, vernacular-first, agriculture-specific problem.
+1.2 Solution
+KhetConnect solves this by:
+Letting farmers post job requirements (crop, work type, wage, date, location)
+Instantly notifying all labourers within 5 km via push notification
+Allowing labourers to view jobs and contact farmers directly
+Maintaining a verified history of completed work for both parties
+A transparent star rating system builds trust over time
+1.3 Target Users
+User Type
+Profile
+Primary Need
+Farmer
+Land owner, 35–65 years, Telugu-speaking, smartphone user
+Post jobs quickly, find reliable labour fast
+Labourer
+Daily wage worker, 20–55 years, local, basic smartphone
+Find nearby work, get paid fairly, build reputation
+Admin
+Platform operator
+Monitor platform health, handle disputes
+1.4 Phase 1 Scope (28 Days)
+Feature
+Details
+Authentication
+Phone + OTP login for farmers and labourers (2 roles)
+Farmer: Post Job
+Crop type, work type, wage/day, workers needed, date, GPS location
+5 km Geo-Query
+PostGIS Haversine query finds labourers within 5 km of job
+Push Notification
+FCM push notification to nearby labourers instantly
+Labourer: View Jobs
+See nearby jobs on list and map view
+Contact Farmer
+Direct call button — no in-app chat needed in Phase 1
+Job Complete Flow
+Farmer marks job done → both rate each other (1–5 stars)
+Work History
+Both farmer and labourer see complete job history
+Profile Page
+Name, village, rating average, total jobs
+Language
+Telugu + English (toggle in app)
+Deployment
+Railway (backend) + Netlify (frontend) + Neon (PostgreSQL)
+2. Tech Stack &amp; Architecture
+2.1 Full Stack Breakdown
+Layer
+Technology
+Why This Choice
+Backend Framework
+Spring Boot 3.2 (Java 17)
+Industry standard, great for REST APIs, JWT support, JPA
+Database
+PostgreSQL 15 + PostGIS extension
+PostGIS enables native 5km geo queries
+ORM
+Spring Data JPA + Hibernate
+Clean entity management, no raw SQL needed
+Security
+Spring Security + JWT (jjwt)
+Stateless auth, role-based access control
+Push Notifications
+Firebase Cloud Messaging (FCM)
+Free, reliable, works on Android + PWA
+Frontend Framework
+React 18 + Vite
+Fast build, component-based, perfect for mobile PWA
+Styling
+Tailwind CSS
+Rapid responsive UI, no custom CSS needed
+Maps
+Leaflet.js + OpenStreetMap
+Free maps, no API billing surprise
+State Management
+Zustand
+Lightweight, simpler than Redux for this scale
+API Client
+Axios
+Clean HTTP calls, interceptors for JWT
+Internationalisation
+i18next + react-i18next
+Telugu + English language toggle
+Backend Hosting
+Railway.app
+Free tier, easy Spring Boot deploy with env vars
+Frontend Hosting
+Netlify
+Free, auto-deploy from GitHub, CDN
+Database Hosting
+Neon.tech (PostgreSQL)
+Free serverless PostgreSQL with PostGIS support
+Image Storage
+Cloudinary (free tier)
+Profile photos, optional
+Build/Deploy
+GitHub + GitHub Actions
+CI/CD pipeline for auto-deploy on push
+2.2 System Architecture
+Architecture Flow
+React PWA (Netlify)  ──HTTPS──►  Spring Boot REST API (Railway)
+Spring Boot  ──JDBC──►  PostgreSQL + PostGIS (Neon)
+Spring Boot  ──FCM SDK──►  Firebase Cloud Messaging  ──Push──►  User Devices
+User Device  ──GPS──►  React App  ──lat/lng in API call──►  Spring Boot Geo Query
+2.3 Folder Structure
+Backend (Spring Boot)
+khetconnect-backend/
+  src/main/java/com/khetconnect/
+    config/          → SecurityConfig, FCMConfig, CorsConfig
+    controller/      → AuthController, JobController, UserController, RatingController
+    service/         → AuthService, JobService, NotificationService, RatingService
+    repository/      → UserRepository, JobRepository, RatingRepository (JPA)
+    entity/          → User, Job, JobApplication, Rating, Notification
+    dto/             → Request/Response DTOs for each API
+    security/        → JwtFilter, JwtUtil, UserDetailsServiceImpl
+    exception/       → GlobalExceptionHandler, CustomExceptions
+  src/main/resources/
+    application.yml  → All config (DB, FCM, JWT secret)
+Frontend (React + Vite)
+khetconnect-frontend/
+  src/
+    components/      → Navbar, JobCard, RatingStars, NotificationBell, LanguageToggle
+    pages/           → Login, Register, FarmerDashboard, LabourDashboard, PostJob, JobDetail, Profile, History
+    store/           → authStore.js, jobStore.js (Zustand)
+    services/        → api.js (Axios instance), fcm.js
+    i18n/            → en.json, te.json (translation files)
+    hooks/           → useLocation.js, useAuth.js
+  public/
+    firebase-messaging-sw.js  → FCM service worker
+3. Database Schema (PostgreSQL + PostGIS)
+7 core tables. PostGIS extension required for geographic queries.
+3.1 Schema Overview
+Table
+Purpose
+Key Columns
+users
+All platform users (farmers + labourers + admin)
+id, name, phone, role, fcm_token, location (POINT)
+farmer_profiles
+Extra farmer data
+user_id, village, land_acres, total_jobs_posted
+labourer_profiles
+Extra labourer data
+user_id, skills, daily_wage_expected, total_jobs_done
+jobs
+Job postings by farmers
+id, farmer_id, title, work_type, wage_per_day, workers_needed, work_date, location (POINT), status
+job_applications
+Labourer applies to job
+id, job_id, labourer_id, status (PENDING/ACCEPTED/REJECTED)
+ratings
+Star ratings after job completion
+id, rater_id, ratee_id, job_id, stars (1-5), comment
+notifications
+In-app notification log
+id, user_id, title, body, type, read, created_at
+3.2 Full SQL Schema
+SQL — Paste this in Neon.tech SQL editor
+CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE TYPE user_role AS ENUM ('FARMER', 'LABOURER', 'ADMIN');
+CREATE TYPE job_status AS ENUM ('OPEN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED');
+CREATE TYPE application_status AS ENUM ('PENDING', 'ACCEPTED', 'REJECTED');
+CREATE TABLE users (
+  id BIGSERIAL PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  phone VARCHAR(15) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  role user_role NOT NULL,
+  language_pref VARCHAR(5) DEFAULT 'te',
+  fcm_token TEXT,
+  location GEOMETRY(POINT, 4326),
+  rating_avg DECIMAL(3,2) DEFAULT 0.00,
+  rating_count INT DEFAULT 0,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+CREATE TABLE farmer_profiles (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  village VARCHAR(100),
+  land_acres DECIMAL(6,2),
+  total_jobs_posted INT DEFAULT 0
+);
+CREATE TABLE labourer_profiles (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  skills TEXT[],
+  daily_wage_expected INT DEFAULT 0,
+  total_jobs_done INT DEFAULT 0
+);
+CREATE TABLE jobs (
+  id BIGSERIAL PRIMARY KEY,
+  farmer_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
+  title VARCHAR(200) NOT NULL,
+  description TEXT,
+  work_type VARCHAR(100),
+  crop_type VARCHAR(100),
+  wage_per_day INT NOT NULL,
+  workers_needed INT DEFAULT 1,
+  work_date DATE NOT NULL,
+  location GEOMETRY(POINT, 4326) NOT NULL,
+  village VARCHAR(100),
+  status job_status DEFAULT 'OPEN',
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+CREATE TABLE job_applications (
+  id BIGSERIAL PRIMARY KEY,
+  job_id BIGINT REFERENCES jobs(id) ON DELETE CASCADE,
+  labourer_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
+  status application_status DEFAULT 'PENDING',
+  applied_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(job_id, labourer_id)
+);
+CREATE TABLE ratings (
+  id BIGSERIAL PRIMARY KEY,
+  rater_id BIGINT REFERENCES users(id),
+  ratee_id BIGINT REFERENCES users(id),
+  job_id BIGINT REFERENCES jobs(id),
+  stars INT CHECK (stars BETWEEN 1 AND 5),
+  comment TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(rater_id, job_id)
+);
+CREATE TABLE notifications (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
+  title VARCHAR(200),
+  body TEXT,
+  type VARCHAR(50),
+  read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+-- Indexes for performance
+CREATE INDEX idx_jobs_location ON jobs USING GIST(location);
+CREATE INDEX idx_users_location ON users USING GIST(location);
+CREATE INDEX idx_jobs_status ON jobs(status);
+CREATE INDEX idx_jobs_farmer ON jobs(farmer_id);
+CREATE INDEX idx_applications_job ON job_applications(job_id);
+4. REST API Design
+Base URL: https://khetconnect-api.railway.app/api/v1
+4.1 Authentication APIs
+Method + Endpoint
+Description
+Auth Required
+POST /auth/register
+Register farmer or labourer (phone + password + role)
+No
+POST /auth/login
+Login, returns JWT token
+No
+POST /auth/fcm-token
+Save FCM device token after login
+Yes
+GET /auth/me
+Get current user profile
+Yes
+PUT /auth/location
+Update user's GPS location
+Yes
+4.2 Job APIs
+Method + Endpoint
+Description
+Auth Required
+POST /jobs
+Farmer creates a new job posting
+FARMER
+GET /jobs/nearby
+Labourer gets jobs within 5km (lat, lng params)
+LABOURER
+GET /jobs/my-posts
+Farmer sees all their posted jobs
+FARMER
+GET /jobs/{id}
+Get full job details
+Yes
+PUT /jobs/{id}/complete
+Farmer marks job as completed
+FARMER
+PUT /jobs/{id}/cancel
+Farmer cancels a job
+FARMER
+POST /jobs/{id}/apply
+Labourer applies to a job
+LABOURER
+PUT /jobs/{id}/accept/{labourerId}
+Farmer accepts a labourer application
+FARMER
+4.3 Rating &amp; History APIs
+Method + Endpoint
+Description
+Auth Required
+POST /ratings
+Submit rating after job completion
+Yes
+GET /users/{id}/ratings
+Get all ratings for a user
+Yes
+GET /history/farmer
+Farmer's complete job history
+FARMER
+GET /history/labourer
+Labourer's complete work history
+LABOURER
+GET /notifications
+Get user's notifications
+Yes
+PUT /notifications/read
+Mark notifications as read
+Yes
+5. 28-Day Development Roadmap
+Phase Overview
+Phase 1 (Days 1–7):   Project Setup + Database + Auth
+Phase 2 (Days 8–14):  Core Job Features + Geo + FCM Notifications
+Phase 3 (Days 15–21): Connect Flow + Complete + Ratings
+Phase 4 (Days 22–28): History + Polish + Deploy + Test
+Phase 1: Foundation (Days 1–7)
+DAY
+1
+Project Setup — Spring Boot + DB
+Create Spring Boot 3.2 project (Spring Initializr: Web, JPA, Security, PostgreSQL, Lombok)
+Connect to Neon.tech PostgreSQL, run full SQL schema including PostGIS
+Setup application.yml with DB URL, JWT secret, FCM credentials
+Create base package structure (controller/service/repo/entity/dto/security/exception)
+🤖 Agent Prompt for Day 1
+Create a new Spring Boot 3.2 project for KhetConnect. Include dependencies: Spring Web, Spring Data JPA, Spring Security, PostgreSQL Driver, Lombok, jjwt (0.12.3). Set up application.yml with: datasource url (placeholder), jpa hibernate ddl-auto=validate, show-sql=true, jwt secret placeholder. Create package structure under com.khetconnect: config, controller, service, repository, entity, dto, security, exception. Create a simple health check endpoint GET /api/v1/health that returns status:ok. Provide complete pom.xml and all files.
+DAY
+2
+User Entity + JWT Security
+Create User entity with all fields including GEOMETRY point for location
+Create FarmerProfile and LabourerProfile entities
+Implement JWT utility class (generate, validate, extract claims)
+Implement JwtFilter (OncePerRequestFilter)
+🤖 Agent Prompt for Day 2
+Build the security layer for KhetConnect Spring Boot project. Create User entity with fields: id, name, phone, passwordHash, role (enum: FARMER/LABOURER/ADMIN), languagePref, fcmToken, location (use String for lat/lng as DECIMAL columns: latitude DECIMAL(10,8), longitude DECIMAL(11,8) — skip PostGIS for entity layer, use native query for geo). Create FarmerProfile and LabourerProfile entities with @OneToOne User. Create JwtUtil class with methods: generateToken(UserDetails), validateToken(String, UserDetails), extractUsername(String). Create JwtAuthFilter extending OncePerRequestFilter. Use jjwt 0.12.3 syntax. Provide all files completely.
+DAY
+3
+Auth Controller — Register + Login
+Create UserDetailsServiceImpl loading user by phone number
+Create SecurityConfig with BCrypt, permit /auth/**, secure all others
+Create RegisterRequest, LoginRequest, AuthResponse DTOs
+Implement AuthService: register(), login() with JWT response
+Implement AuthController: POST /api/v1/auth/register, POST /api/v1/auth/login
+🤖 Agent Prompt for Day 3
+Build complete authentication for KhetConnect. Create: UserDetailsServiceImpl that loads user by phone number. SecurityConfig with BCryptPasswordEncoder, permit /api/v1/auth/** without auth, all other endpoints require auth, add JwtAuthFilter. DTOs: RegisterRequest (name, phone, password, role, village/skills based on role), LoginRequest (phone, password), AuthResponse (token, userId, role, name). AuthService with register() that creates User + profile, login() that validates and returns JWT. AuthController with POST /api/v1/auth/register and POST /api/v1/auth/login. Add GlobalExceptionHandler for validation errors. Test with curl examples in comments.
+DAY
+4
+FCM Token + Location Update APIs
+Implement POST /auth/fcm-token — save device FCM token to user record
+Implement PUT /auth/location — update user latitude/longitude
+Implement GET /auth/me — return current user profile
+Add CORS config for Netlify frontend domain
+🤖 Agent Prompt for Day 4
+Add user profile management APIs to KhetConnect. Implement: POST /api/v1/auth/fcm-token (body: {fcmToken: string}) saves FCM token to authenticated user. PUT /api/v1/auth/location (body: {latitude, longitude}) updates user location. GET /api/v1/auth/me returns UserProfileResponse with id, name, phone, role, village/skills, ratingAvg, ratingCount. Add CorsConfig that allows all origins in dev (we will restrict in prod). Add input validation with @Valid. Ensure all endpoints return consistent ApiResponse wrapper {success, message, data}. Provide complete code.
+DAY
+5
+React + Vite Setup + i18n
+Create React 18 + Vite project with Tailwind CSS
+Install: axios, react-router-dom, zustand, i18next, react-i18next, react-hot-toast
+Create en.json and te.json translation files with all UI strings
+Setup Zustand authStore with token, user, login(), logout()
+Create Axios instance with JWT interceptor
+🤖 Agent Prompt for Day 5
+Set up the React 18 + Vite frontend for KhetConnect. Install dependencies: tailwindcss, axios, react-router-dom v6, zustand, i18next, react-i18next, react-hot-toast. Configure Tailwind. Create src/i18n/en.json and src/i18n/te.json with keys for: app name, login, register, post job, nearby jobs, work history, rating, profile, language toggle, all button labels and messages. Create src/store/authStore.js with Zustand: stores token, user object, login(token, user), logout(). Create src/services/api.js with Axios instance pointing to backend URL, request interceptor adds Authorization Bearer token. Provide all config files and complete setup.
+DAY
+6
+Login + Register UI Pages
+Build Login page with phone + password form
+Build Register page with role selection (Farmer/Labourer) and conditional fields
+Connect to backend auth APIs
+Add language toggle (Telugu/English) in navbar
+Save JWT to Zustand store on successful login
+🤖 Agent Prompt for Day 6
+Build Login and Register pages for KhetConnect React app. Login page: phone number input, password input, submit button, link to register. On success save token + user to authStore, redirect to dashboard based on role (FARMER -&gt; /farmer, LABOURER -&gt; /labourer). Register page: name, phone, password, role selection toggle (Farmer/Labourer), if Farmer show village field, if Labourer show skills checkboxes (Harvesting, Planting, Irrigation, Spraying, Other) and expected daily wage. Use Tailwind for styling with green color theme (#1B5E20 primary). Add LanguageToggle component in navbar that switches i18next language. Use react-hot-toast for success/error messages. Provide complete page components.
+DAY
+7
+Router + Protected Routes + Dashboards Shell
+Setup react-router-dom with role-based protected routes
+Create FarmerDashboard shell page with navigation
+Create LabourDashboard shell page with navigation
+Create BottomNavBar component for mobile (Post Job, Nearby Jobs, History, Profile)
+Deploy frontend to Netlify (connect GitHub repo)
+🤖 Agent Prompt for Day 7
+Set up routing and dashboard shells for KhetConnect. Create App.jsx with react-router-dom v6 routes: / (redirect to login), /login, /register, /farmer (protected, FARMER role only), /labourer (protected, LABOURER role only), /profile, /history. Create ProtectedRoute component that checks authStore token and role. Create FarmerDashboard page with: welcome message with farmer name, quick stats (jobs posted, active jobs), button to Post New Job, button to View My Jobs, recent activity list (empty state for now). Create LabourDashboard page with: welcome, nearby jobs count, earnings this month, button to Browse Jobs. Create BottomNavBar with 4 icons for mobile navigation. All in green theme, mobile-first responsive design.
+Phase 2: Core Features (Days 8–14)
+DAY
+8
+Job Entity + Post Job API
+Create Job entity with all fields, linked to User (farmer)
+Create JobApplication entity
+Implement POST /jobs — farmer creates job with lat/lng
+Implement GET /jobs/my-posts — farmer sees their jobs
+Add JobRepository with custom JPQL queries
+🤖 Agent Prompt for Day 8
+Build the job posting system for KhetConnect backend. Create Job entity: id, farmerId (FK to users), title, description, workType (HARVESTING/PLANTING/IRRIGATION/SPRAYING/WEEDING/OTHER enum), cropType, wagePerDay (int), workersNeeded, workDate (LocalDate), latitude, longitude, village, status (OPEN/IN_PROGRESS/COMPLETED/CANCELLED enum), createdAt. Create JobApplication entity: id, jobId, labourerId, status (PENDING/ACCEPTED/REJECTED), appliedAt. Create PostJobRequest DTO and JobResponse DTO. Create JobService with createJob(PostJobRequest, Long farmerId). Create JobController with POST /api/v1/jobs (FARMER only), GET /api/v1/jobs/my-posts. Return paginated results. Provide all files.
+DAY
+9
+5 KM Geo Query
+Write native PostgreSQL query using ST_DWithin and ST_MakePoint
+Implement GET /jobs/nearby?lat=&amp;lng= — returns jobs within 5km
+Test geo query with sample coordinates from Naidupeta
+Add distance_km field in response so labourer sees how far the job is
+🤖 Agent Prompt for Day 9
+Implement the 5km geospatial job query for KhetConnect. In JobRepository add a @Query with nativeQuery=true using PostGIS: SELECT j.*, ST_Distance(ST_MakePoint(j.longitude, j.latitude)::geography, ST_MakePoint(:lng, :lat)::geography) / 1000 as distance_km FROM jobs j WHERE j.status = 'OPEN' AND ST_DWithin(ST_MakePoint(j.longitude, j.latitude)::geography, ST_MakePoint(:lng, :lat)::geography, 5000) ORDER BY distance_km ASC. Create NearbyJobsResponse DTO that includes distanceKm. In JobController add GET /api/v1/jobs/nearby with @RequestParam lat, lng (LABOURER role). Also add GET /api/v1/jobs/{id} for job detail. Handle case where user hasn't shared location yet. Provide all code.
+DAY
+10
+Firebase FCM Setup + Notification Service
+Create Firebase project, download service account JSON
+Add Firebase Admin SDK to pom.xml
+Create FCMConfig that loads credentials from env variable
+Create NotificationService with sendToDevice(fcmToken, title, body, data)
+Create NotificationRepository and save to notifications table
+🤖 Agent Prompt for Day 10
+Integrate Firebase Cloud Messaging in KhetConnect Spring Boot. Add firebase-admin dependency to pom.xml. Create FCMConfig.java that initializes FirebaseApp from a service account JSON stored as environment variable FIREBASE_CREDENTIALS_JSON (base64 encoded). Create NotificationService with method sendPushNotification(String fcmToken, String title, String body, Map&lt;String,String&gt; data) that uses FirebaseMessaging.getInstance().send(). Create Notification entity and NotificationRepository. Create NotificationController with GET /api/v1/notifications (returns user's notifications paginated) and PUT /api/v1/notifications/read (marks all as read). Add error handling — if FCM send fails, log but don't fail the main operation. Provide all files.
+DAY
+11
+Auto-Notify Labourers on Job Post
+After farmer posts a job, query all labourers within 5km with non-null FCM tokens
+Send FCM push notification to each labourer in background (async @Async)
+Notification title: 'Nearby work available' with job details
+Save notification record to DB for in-app notification bell
+🤖 Agent Prompt for Day 11
+Wire up automatic notifications in KhetConnect. When a farmer posts a job (in JobService.createJob), after saving the job: 1) Query all labourers within 5km who have non-null fcm_token using a native geo query on users table. 2) For each labourer, call NotificationService.sendPushNotification() with title in format 'Work Available - [village]' and body '[workType] | Rs.[wage]/day | [date]'. 3) Save notification record to notifications table. 4) Make this entire notification sending process @Async so the job posting API returns immediately without waiting. Create UserRepository method to find nearby labourers. Add @EnableAsync to main class. Handle case where labourer has null FCM token. Provide complete code.
+DAY
+12
+Post Job UI + Location Capture
+Build PostJob page with form: crop type, work type, wage, workers needed, date
+Add geolocation button to capture current GPS coordinates
+Submit to POST /jobs API with location data
+Show success toast and redirect to my jobs list
+🤖 Agent Prompt for Day 12
+Build the Post Job page for KhetConnect React frontend (FARMER role). Create PostJob.jsx with form fields: title (text), cropType (select: Rice/Cotton/Groundnut/Sugarcane/Other), workType (select: Harvesting/Planting/Irrigation/Spraying/Weeding/Other), description (textarea), wagePerDay (number input, min 200), workersNeeded (number, 1-20), workDate (date picker, min today), village (text). Add a Get My Location button that calls navigator.geolocation.getCurrentPosition() and stores lat/lng in state. Show green checkmark when location captured. On submit call POST /api/v1/jobs with all data. Show loading state on button. On success show toast and navigate to /farmer. Style with Tailwind green theme. Support Telugu/English via i18next. Provide complete component.
+DAY
+13
+Nearby Jobs UI (Labourer)
+Build NearbyJobs page — request GPS on load, call GET /jobs/nearby
+Show job cards with: title, wage, distance, work date, farmer rating
+Add filter by work type
+Tap job card → JobDetail page
+🤖 Agent Prompt for Day 13
+Build the Nearby Jobs page for KhetConnect React frontend (LABOURER role). NearbyJobs.jsx: on mount, call navigator.geolocation.getCurrentPosition(), then call GET /api/v1/jobs/nearby?lat=&amp;lng=. Show loading spinner while fetching. If location denied, show message asking to enable location. Display jobs as cards with: job title, work type badge (colored), wage per day (large, bold), distance in km, work date, village name, farmer name + rating stars. Add filter buttons at top: All / Harvesting / Planting / Irrigation etc. Empty state with illustration if no jobs nearby. Pull-to-refresh (button). On card tap navigate to /jobs/:id. Also update user location in backend via PUT /auth/location. Style mobile-first with Tailwind.
+DAY
+14
+Job Detail + Apply Flow
+Build JobDetail page — shows full job info + farmer profile
+Add Apply button for labourer (POST /jobs/{id}/apply)
+Add Contact Farmer button (tel: link with farmer phone number)
+Show application status if already applied
+🤖 Agent Prompt for Day 14
+Build Job Detail and Apply flow for KhetConnect React. JobDetail.jsx: fetch GET /api/v1/jobs/:id on mount. Show: job title, full description, work type, crop type, wage/day, workers needed, work date, village, distance. Show farmer section: name, rating stars, rating count, village. Show two action buttons: 1) Apply for Work (calls POST /api/v1/jobs/:id/apply, then shows Applied badge), 2) Call Farmer (href=tel:[farmerPhone]). Handle states: if already applied show pending/accepted/rejected badge. If job is FARMER role user, show applicants list instead. If job is full (workers_needed met) show Full badge. Add back button. Also build FarmerApplicants view: farmer can see list of applied labourers with their rating, and Accept/Reject buttons calling PUT /api/v1/jobs/:id/accept/:labourerId. Provide complete code.
+Phase 3: Complete + Ratings (Days 15–21)
+DAY
+15
+Complete Job Flow (Backend)
+Implement PUT /jobs/{id}/complete — farmer marks job done
+Validate: only job's farmer can complete it
+Change job status to COMPLETED
+Trigger notification to all accepted labourers: 'Job marked complete, please rate'
+🤖 Agent Prompt for Day 15
+Build the job completion flow in KhetConnect backend. In JobService add completeJob(Long jobId, Long farmerId): validate job belongs to farmer, validate current status is IN_PROGRESS or OPEN, update status to COMPLETED, update farmer's total_jobs_posted count, update each accepted labourer's total_jobs_done count. Send FCM notification to all accepted labourers with title 'Job Complete!' and body 'Please rate your experience to build your profile'. Expose as PUT /api/v1/jobs/:id/complete (FARMER role). Also add PUT /api/v1/jobs/:id/cancel. Add GET /api/v1/jobs/:id/applicants to return applicants list with labourer profile data. Add PUT /api/v1/jobs/:id/accept/:labourerId. Provide all service and controller code.
+DAY
+16
+Rating System (Backend)
+Create RatingService with submitRating(rateRequest, raterId)
+Validate: both users must be part of the completed job
+Prevent duplicate ratings (unique constraint on rater_id + job_id)
+After each new rating, recalculate and update ratee's rating_avg
+🤖 Agent Prompt for Day 16
+Build the rating system for KhetConnect backend. Create RatingService: submitRating(Long raterId, RatingRequest request) where RatingRequest has rateeId, jobId, stars (1-5), comment. Validate: job must be COMPLETED, rater must be farmer of the job OR an accepted labourer, ratee must be the other party, no duplicate rating. Save to ratings table. After save, recalculate ratee's rating_avg: SELECT AVG(stars) FROM ratings WHERE ratee_id = ? and UPDATE users SET rating_avg = ?, rating_count = ? WHERE id = ?. Create RatingController with POST /api/v1/ratings. Create GET /api/v1/users/:id/profile that returns user profile with recent ratings list. Provide complete code with validation and error handling.
+DAY
+17
+Rating UI — Star Component
+Build reusable StarRating component (display + interactive modes)
+Build RateJobModal — appears after job marked complete
+Farmer rates labourer + labourer rates farmer
+Connect to POST /ratings API
+🤖 Agent Prompt for Day 17
+Build the rating UI for KhetConnect React. Create StarRating.jsx: reusable component with props interactive (boolean) and value (1-5). In interactive mode shows clickable stars that highlight on hover and click. In display mode shows filled/empty stars with rating number. Create RateJobModal.jsx: full-screen modal that appears when a completed unrated job is detected. Shows: job title, other party name + photo placeholder, 5 star rating picker, optional comment textarea, Submit Rating button. On submit calls POST /api/v1/ratings. On success show thank you message and close modal. In LabourDashboard and FarmerDashboard check for completed unrated jobs on load and show RateJobModal if found. Add rating average display with stars on profile pages and job cards. Provide all components.
+DAY
+18
+Work History Pages
+Build WorkHistory page for farmers — list of all posted jobs with status badges
+Build WorkHistory page for labourers — list of all jobs worked with earnings
+Show total earnings for labourer this month
+Add filter by status (All, Completed, Ongoing, Cancelled)
+🤖 Agent Prompt for Day 18
+Build Work History pages for KhetConnect React. Create FarmerHistory.jsx: fetches GET /api/v1/history/farmer, shows jobs in a timeline list. Each item shows: job title, work date, number of labourers hired, wage total, status badge (color coded: green=completed, yellow=open, red=cancelled). Show summary card at top: total jobs posted, total completed, total spent on wages. Add status filter tabs. Create LabourHistory.jsx: fetches GET /api/v1/history/labourer, shows jobs worked. Each item shows: job title, farmer name, work date, wage earned, rating received. Show summary card: total jobs done, total earned, average rating received, this month earnings highlighted. Add history API endpoints in Spring Boot: GET /api/v1/history/farmer and GET /api/v1/history/labourer. Provide frontend and backend code.
+DAY
+19
+Profile Page
+Build Profile page for both roles
+Show: name, phone, village, rating average with stars, total jobs
+Show recent ratings received with comments
+Edit profile (name, village, skills, language preference)
+🤖 Agent Prompt for Day 19
+Build Profile pages for KhetConnect React. Create Profile.jsx (shared for both roles): fetch GET /api/v1/auth/me and GET /api/v1/users/:id/profile. Show: profile avatar (initials-based colored circle), name, phone, role badge, village, member since date. Rating section: large average rating number, star display, total ratings count. Stats row: total jobs (posted or done), completed jobs, month earnings. Recent ratings section: list of 5 recent ratings with star score, comment, rater name, date. Edit mode: click Edit button to enable form editing of name, village, language preference (toggle), for labourer also skills and expected wage. Save calls PUT /api/v1/auth/profile. Add logout button. Create backend PUT /api/v1/auth/profile endpoint. Provide complete code.
+DAY
+20
+Dashboard Polish + Notification Bell
+Add notification bell icon with unread count badge in navbar
+NotificationsPage — list of all notifications with read/unread state
+Mark all as read on open
+Add FCM foreground message handler in React
+🤖 Agent Prompt for Day 20
+Add notification system UI to KhetConnect React. Create NotificationBell.jsx: bell icon in navbar with red badge showing unread count. Fetches GET /api/v1/notifications on mount. On click opens NotificationsPage. Create NotificationsPage.jsx: list of notifications with title, body, time ago (use date-fns), unread shown with green left border, read shown gray. On page open call PUT /api/v1/notifications/read. Add FCM foreground handling: in firebase-messaging-sw.js handle background push (show browser notification). In App.jsx add onMessage(messaging, handler) to show react-hot-toast for foreground notifications. Update notification count in real time. Add date-fns for relative time formatting. Also improve FarmerDashboard to show active jobs count, pending applicants count as stat cards. Provide all code.
+DAY
+21
+My Jobs Management (Farmer)
+Build MyJobs page — list of farmer's posted jobs
+Each job shows: applicant count, accepted count, status
+Tap job to see applicants list with Accept/Reject buttons
+Mark Complete button on in-progress jobs
+🤖 Agent Prompt for Day 21
+Build the My Jobs management page for KhetConnect farmers. Create MyJobs.jsx: fetches GET /api/v1/jobs/my-posts. Shows jobs as cards with: job title, work type badge, work date, wage, status (color coded), number of applicants. Expand card on tap to show applicant list. Applicant list shows: labourer name, rating, village, skills. Accept button (green) and Reject button (red) per applicant. After accepting enough labourers (= workers_needed) show job as IN_PROGRESS. Show Mark Complete button on IN_PROGRESS jobs. Confirm dialog before marking complete. After complete, check if rating needed and show RateJobModal. Add empty state when no jobs posted with Post Job CTA button. Handle all loading and error states. Also polish mobile layout — ensure all tap targets are minimum 44px. Provide complete component.
+Phase 4: Polish + Deploy (Days 22–28)
+DAY
+22
+PWA Setup + Mobile Optimization
+Add manifest.json with app name, icons, theme color (green)
+Configure Vite PWA plugin for installable app
+Test on Android Chrome — Add to Home Screen
+Fix any mobile layout issues, ensure all pages scroll correctly
+🤖 Agent Prompt for Day 22
+Make KhetConnect a Progressive Web App. Install vite-plugin-pwa. Configure in vite.config.js: manifest with name KhetConnect, short_name KhetConnect, theme_color #1B5E20, background_color #FFFFFF, display standalone, icons (192x192 and 512x512 — generate simple green wheat icon). Configure workbox for caching strategies: NetworkFirst for API calls, CacheFirst for static assets. Update firebase-messaging-sw.js to work with PWA service worker. Test: open on Android Chrome, should show Add to Home Screen prompt. Fix all mobile layout issues: ensure no horizontal scroll, all buttons min 48px height, form inputs don't zoom on focus (font-size &gt;= 16px), bottom nav doesn't overlap content (add padding-bottom to main content). Provide all PWA config files.
+DAY
+23
+Error Handling + Loading States
+Add global error boundary in React
+Add skeleton loading screens for job lists
+Handle no-internet scenario gracefully
+Add retry buttons on API error states
+🤖 Agent Prompt for Day 23
+Add production-quality error handling to KhetConnect React. Create ErrorBoundary.jsx component that catches React errors and shows friendly error page with retry button. Create Skeleton.jsx component that shows animated gray skeleton for job cards and profile sections while loading. Add empty states for all list pages: Nearby Jobs empty (no jobs nearby), My Jobs empty, History empty — each with a helpful illustration (use emoji + styled div) and action button. Handle network errors: axios response interceptor that catches network errors and shows offline toast. Handle 401 (token expired): redirect to login and clear authStore. Handle 403: show forbidden message. Add loading prop to all buttons that shows spinner and disables button during API call. Create useApi hook that wraps axios calls with loading/error state. Provide all components and hooks.
+DAY
+24
+Backend: Rate Limiting + Validation + Logging
+Add @Valid input validation to all controller DTOs
+Add custom error messages in Telugu and English
+Add request logging with MDC (user ID in each log line)
+Add rate limiting on auth endpoints (prevent brute force)
+🤖 Agent Prompt for Day 24
+Harden the KhetConnect Spring Boot backend. Add comprehensive @Valid validation to all DTOs: phone (10 digits pattern), name (2-50 chars), stars (1-5 range), wagePerDay (min 100 max 10000), workersNeeded (1-50). Create GlobalExceptionHandler with @RestControllerAdvice that handles MethodArgumentNotValidException, EntityNotFoundException, AccessDeniedException, general Exception — return consistent {success: false, message: errorMessage, errors: [field errors]}. Add Bucket4j dependency for rate limiting: limit auth endpoints to 10 requests per IP per minute. Add request logging filter that logs: method, path, userId (from JWT), response status, duration in ms. Add @Slf4j logging in all service methods for key operations (job posted, notification sent, rating submitted). Provide all code.
+DAY
+25
+Railway Deployment + Environment Setup
+Push backend to GitHub, connect to Railway
+Set all environment variables in Railway (DB URL, JWT secret, Firebase creds)
+Enable Railway auto-deploy on main branch push
+Test all APIs from Postman against Railway URL
+🤖 Agent Prompt for Day 25
+Deploy KhetConnect Spring Boot to Railway. Create Dockerfile for Spring Boot: FROM eclipse-temurin:17-jre-alpine, COPY target/*.jar app.jar, EXPOSE 8080, ENTRYPOINT java -jar /app.jar. Create .github/workflows/deploy.yml: on push to main, run mvn package -DskipTests, then Railway auto-deploys. List all required Railway environment variables: DATABASE_URL (Neon PostgreSQL URL with ?sslmode=require), JWT_SECRET (32+ char random string), FIREBASE_CREDENTIALS_JSON (base64 of service account JSON), CORS_ALLOWED_ORIGINS (Netlify URL). Update application.yml to read all sensitive values from environment variables using ${VAR_NAME}. Create a Postman collection JSON with all API endpoints for testing. Add /actuator/health endpoint. Provide Dockerfile, workflow, and updated application.yml.
+DAY
+26
+Netlify Deploy + Environment + HTTPS
+Push frontend to GitHub, connect to Netlify
+Set VITE_API_BASE_URL env var in Netlify to Railway URL
+Configure Netlify _redirects for React Router
+Test full flow end-to-end: register → post job → notify → apply → rate
+🤖 Agent Prompt for Day 26
+Deploy KhetConnect React frontend to Netlify. Create netlify.toml with build command: npm run build, publish: dist, add [[redirects]] from /* to /index.html with 200 status (for React Router). Create .env.production with VITE_API_BASE_URL=https://your-railway-url.railway.app/api/v1. Update api.js Axios base URL to use import.meta.env.VITE_API_BASE_URL. Update Firebase config to use environment variables. In Netlify dashboard set environment variables: VITE_API_BASE_URL, VITE_FIREBASE_API_KEY, VITE_FIREBASE_PROJECT_ID etc. Test complete user journey: 1) Register farmer, 2) Register labourer with different device/browser, 3) Farmer posts job, 4) Labourer gets notification and sees job in nearby list, 5) Labourer applies, 6) Farmer accepts, 7) Job marked complete, 8) Both rate each other. Document any bugs found. Provide netlify.toml and all env config.
+DAY
+27
+End-to-End Testing + Bug Fixes
+Test all user flows on actual Android phone
+Fix any UI bugs found (spacing, overflow, font sizes)
+Test FCM notifications actually arrive
+Test geo query with actual locations (Naidupeta coordinates)
+🤖 Agent Prompt for Day 27
+Perform comprehensive end-to-end testing for KhetConnect. Create a testing checklist and test each item: Auth flow (register farmer, register labourer, login, JWT expiry handling), Farmer flow (post job with location, see my jobs, see applicants, accept labourer, mark complete, rate labourer), Labourer flow (see nearby jobs, apply, see application status, rate farmer after completion), Notification flow (does FCM notification arrive when job posted? does it arrive on background? foreground?), Edge cases (what if labourer has no location saved, what if farmer tries to complete already completed job, what if user rates twice, what if job has no applicants and farmer marks complete). Fix all bugs found. Add any missing validation. Ensure API returns proper HTTP status codes (201 for creates, 404 for not found, 403 for forbidden). Provide fixed code for any bugs found.
+DAY
+28
+Feedback System + Launch Prep
+Add simple in-app feedback button (submits to backend /feedback endpoint)
+Create admin endpoint to view all feedback
+Write README.md with setup, architecture, and demo video link
+Final deployment check — all environment variables set, HTTPS working
+🤖 Agent Prompt for Day 28
+Add feedback system and finalize KhetConnect for launch. Create Feedback entity: id, userId, message, type (BUG/SUGGESTION/OTHER), createdAt. Add POST /api/v1/feedback endpoint (authenticated). Add FeedbackButton component in app (floating bottom right, clicking opens FeedbackModal with text area and type selector). Create README.md for GitHub with: project description, problem solved, tech stack list, system architecture diagram (ASCII), setup instructions for local dev (clone, set env vars, run), API documentation summary, deployment guide, screenshots section placeholder. Add meta tags to index.html for SEO: title KhetConnect, description, OG tags. Create a simple admin page (admin role only) at /admin that shows: total users count, total jobs, total ratings, recent feedback list. Provide all final code and complete README.
+6. Environment Variables Reference
+6.1 Backend (Railway)
+Variable
+Description / Example
+DATABASE_URL
+postgresql://user:pass@host/khetconnect?sslmode=require
+JWT_SECRET
+Random 32+ character string (use: openssl rand -base64 32)
+JWT_EXPIRY_MS
+86400000 (24 hours in milliseconds)
+FIREBASE_CREDENTIALS_JSON
+Base64 encoded Firebase service account JSON
+CORS_ALLOWED_ORIGINS
+https://khetconnect.netlify.app
+SPRING_PROFILES_ACTIVE
+prod
+6.2 Frontend (Netlify)
+Variable
+Description / Example
+VITE_API_BASE_URL
+https://khetconnect-api.railway.app/api/v1
+VITE_FIREBASE_API_KEY
+From Firebase console → Project Settings → Web App
+VITE_FIREBASE_PROJECT_ID
+khetconnect-xxxxx
+VITE_FIREBASE_MESSAGING_SENDER_ID
+From Firebase console
+VITE_FIREBASE_APP_ID
+From Firebase console
+VITE_FIREBASE_VAPID_KEY
+From Firebase console → Cloud Messaging → Web Push certs
+7. Post-Deployment: Maintenance &amp; Growth
+7.1 Monitoring Checklist (Weekly)
+Check Railway logs for any ERROR level exceptions
+Check Neon database storage usage (free tier: 512 MB)
+Review in-app feedback submitted by users
+Check FCM delivery reports in Firebase console
+Review new user registrations and job post counts
+7.2 Common Issues &amp; Fixes
+Issue
+Likely Cause
+Fix
+FCM notifications not arriving
+Expired FCM token or app killed
+Refresh FCM token on each app open via PUT /auth/fcm-token
+Nearby jobs not showing
+User location not saved
+Ensure location is captured and sent on login/app open
+Railway app sleeping
+Free tier inactivity
+Use cron-job.org to ping /actuator/health every 10 mins
+Database connection error
+Neon serverless cold start
+Add Spring datasource connection pool settings (min-idle=1)
+CORS error in production
+Missing Netlify domain in allowed origins
+Update CORS_ALLOWED_ORIGINS env var in Railway
+7.3 Phase 2 Roadmap (Post July 11)
+WhatsApp Business API notifications (Twilio or Meta Cloud API)
+Hindi language support
+In-app chat between farmer and labourer
+UPI payment integration (farmer pays labourer through app)
+Admin dashboard for platform moderation
+Labourer availability calendar
+Seasonal job trends analytics
+8. Resume &amp; Portfolio Points
+How to Present KhetConnect on Your Resume
+Title: KhetConnect — Hyperlocal Agricultural Labour Marketplace
+Bullet points to use:
+• Built full-stack PWA connecting 2 user roles (farmers &amp; labourers) with real-time 5km geo-matching
+• Implemented PostGIS ST_DWithin spatial queries for hyperlocal job discovery within 5km radius
+• Integrated Firebase Cloud Messaging for instant push notifications to nearby labourers on job post
+• Designed 7-table PostgreSQL schema with geographic indexing (GIST) for high-performance geo queries
+• Built bilingual UI (Telugu + English) with i18next, serving rural Indian users with low digital literacy
+• Deployed on Railway (Spring Boot) + Netlify (React PWA) + Neon (PostgreSQL) with GitHub CI/CD
+• Implemented JWT auth, role-based access control (FARMER/LABOURER/ADMIN), and star rating system
+Interview Talking Points
+Q: What problem does this solve? → Real problem in Naidupeta — farmers can't find labour during harvest season
+Q: How does the 5km query work? → PostGIS ST_DWithin with GIST spatial index on lat/lng columns
+Q: How do you handle notifications? → FCM Admin SDK on backend, service worker on frontend for background push
+Q: How is the architecture designed? → 3-tier: React PWA (Netlify) → Spring Boot REST (Railway) → PostgreSQL (Neon)
+Q: What would you improve? → WhatsApp notifications (higher delivery for non-smartphone users), Phase 2 features
