@@ -3,8 +3,10 @@
 import api from './services/api'
 
 let messaging = null
+const enabled = import.meta.env.VITE_ENABLE_FCM === 'true'
 
 export async function initFirebase() {
+  if (!enabled) return null
   try {
     const configJson = import.meta.env.VITE_FIREBASE_CONFIG
     if (!configJson) return null
@@ -20,6 +22,7 @@ export async function initFirebase() {
 }
 
 export async function requestAndRegisterFcm() {
+  if (!enabled) return null
   try {
     if (!messaging) await initFirebase()
     if (!messaging) return null
@@ -36,8 +39,13 @@ export async function requestAndRegisterFcm() {
 }
 
 export async function listenForegroundMessages(callback) {
+  if (!enabled) return
   if (!messaging) await initFirebase()
   if (!messaging) return
   const { onMessage } = await import('firebase/messaging')
   onMessage(messaging, (payload) => callback(payload))
+}
+
+export function isFcmEnabled() {
+  return enabled
 }

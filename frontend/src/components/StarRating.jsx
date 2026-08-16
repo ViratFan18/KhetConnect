@@ -1,23 +1,37 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 
 export default function StarRating({ value = 0, interactive = false, onChange, size = 'md' }) {
   const [hover, setHover] = useState(0)
-  const sizeClass = size === 'lg' ? 'text-2xl' : size === 'sm' ? 'text-sm' : 'text-lg'
+  const [anim, setAnim] = useState(null)
+  
+  const sizeClass = size === 'lg' ? 'text-3xl' : size === 'sm' ? 'text-base' : 'text-2xl'
 
   return (
-    <div className={`flex items-center gap-0.5 ${sizeClass}`}>
+    <div className={`flex items-center gap-1 ${sizeClass}`}>
       {[1, 2, 3, 4, 5].map((star) => {
         const filled = star <= (hover || value)
+        const isHovered = interactive && star <= hover
+        
         return (
           <button
             key={star}
             type="button"
-            disabled={!interactive}
-            onClick={() => interactive && onChange?.(star)}
+            onClick={() => {
+              if (interactive) {
+                onChange?.(star)
+                setAnim(star)
+                setTimeout(() => setAnim(null), 400)
+              }
+            }}
             onMouseEnter={() => interactive && setHover(star)}
             onMouseLeave={() => interactive && setHover(0)}
-            className={`${interactive ? 'cursor-pointer' : 'cursor-default'} ${
-              filled ? 'text-yellow-400' : 'text-gray-300'
+            disabled={!interactive}
+            className={`transition-all duration-200 ${
+              interactive ? 'cursor-pointer hover:scale-110' : 'cursor-default'
+            } ${anim === star ? 'scale-125 animate-pulse' : 'scale-100'} ${
+              filled 
+                ? 'text-amber-400 drop-shadow-[0_0_4px_rgba(251,146,60,0.4)]' 
+                : 'text-slate-600'
             }`}
           >
             ★
@@ -25,7 +39,7 @@ export default function StarRating({ value = 0, interactive = false, onChange, s
         )
       })}
       {!interactive && value > 0 && (
-        <span className="ml-1 text-sm text-gray-600">{Number(value).toFixed(1)}</span>
+        <span className="ml-2 text-sm text-slate-400 font-medium">{Number(value).toFixed(1)}</span>
       )}
     </div>
   )

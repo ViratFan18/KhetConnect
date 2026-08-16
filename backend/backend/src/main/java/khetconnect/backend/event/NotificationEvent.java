@@ -11,4 +11,5 @@ public class NotificationEvent {
     private String title;
     private String body;
     private String type;
+    private Long jobId;  // Optional: used for deduplication
 }

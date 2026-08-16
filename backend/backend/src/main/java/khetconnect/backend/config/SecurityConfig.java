@@ -31,6 +31,7 @@ public class SecurityConfig {
     private final UserDetailsService userDetailsService;
     private final CorsConfigurationSource corsConfigurationSource;
     private final RequestIdFilter requestIdFilter;
+    private final RateLimitFilter rateLimitFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -39,12 +40,20 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/health", "/api/v1/auth/**", "/actuator/health", "/actuator/info", "/h2-console/**").permitAll()
+                        .requestMatchers("/api/v1/health", "/api/v1/auth/**", "/api/v1/client-errors", "/actuator/health", "/actuator/info", "/h2-console/**").permitAll()
+                        .requestMatchers("/api/v1/docs", "/api/v1/docs/**", "/api/v1/swagger-ui.html", "/api/v1/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .anyRequest().authenticated()
                 )
-                .headers(h -> h.frameOptions(f -> f.sameOrigin()))
+                .headers(h -> h
+                        .frameOptions(f -> f.sameOrigin())
+                        .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'"))
+                        .xssProtection()
+                        .and()
+                        .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).preload(true).maxAgeInSeconds(31536000))
+                )
                 .authenticationProvider(authenticationProvider())
+                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(requestIdFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

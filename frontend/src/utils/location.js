@@ -1,5 +1,18 @@
 import api from '../services/api'
 
+export async function getLocationPermissionState() {
+  if (!navigator || !navigator.permissions || !navigator.permissions.query) {
+    return 'unknown'
+  }
+
+  try {
+    const result = await navigator.permissions.query({ name: 'geolocation' })
+    return result.state
+  } catch {
+    return 'unknown'
+  }
+}
+
 export async function getCurrentLocation() {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -26,6 +39,3 @@ export async function updateUserLocation(lat, lng) {
   await api.put('/auth/location', { latitude: lat, longitude: lng })
 }
 
-export function workTypeLabel(t, type) {
-  return t(type?.toLowerCase() || 'other')
-}

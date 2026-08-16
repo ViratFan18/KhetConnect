@@ -12,6 +12,8 @@ import khetconnect.backend.repository.LabourerProfileRepository;
 import khetconnect.backend.repository.RefreshTokenRepository;
 import khetconnect.backend.repository.UserRepository;
 import khetconnect.backend.security.JwtUtil;
+import khetconnect.backend.util.BusinessEventLogger;
+import khetconnect.backend.util.PiiMasker;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -21,11 +23,15 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -40,8 +46,12 @@ public class AuthService {
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
 
+    private final Map<String, ResetTokenRecord> passwordResetTokens = new ConcurrentHashMap<>();
+
     @Value("${khetconnect.jwt.refresh-expiry-ms:604800000}")
     private long refreshExpiryMs;
+
+    private static final Duration PASSWORD_RESET_TTL = Duration.ofMinutes(15);
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -80,6 +90,7 @@ public class AuthService {
         }
 
         String token = jwtUtil.generateToken(user);
+        BusinessEventLogger.userRegistered(user.getId(), request.getRole().toString());
         return AuthResponse.builder()
                 .token(token)
                 .refreshToken(createRefreshToken(user))
@@ -87,6 +98,47 @@ public class AuthService {
                 .role(user.getRole())
                 .name(user.getName())
                 .build();
+    }
+
+    @Transactional
+    public String forgotPassword(ForgotPasswordRequest request) {
+        User user = userRepository.findByPhone(request.getPhone())
+                .orElseThrow(() -> new UserNotRegisteredException("This number is not registered. Please register first."));
+
+        String token = UUID.randomUUID().toString();
+        passwordResetTokens.put(token, new ResetTokenRecord(user.getPhone(), Instant.now()));
+        return token;
+    }
+
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        ResetTokenRecord record = passwordResetTokens.get(request.getToken());
+        if (record == null || Duration.between(record.createdAt(), Instant.now()).compareTo(PASSWORD_RESET_TTL) > 0) {
+            passwordResetTokens.remove(request.getToken());
+            throw new BadRequestException("Password reset token is invalid or expired.");
+        }
+
+        User user = userRepository.findByPhone(record.phone())
+                .orElseThrow(() -> new UserNotRegisteredException("This number is not registered. Please register first."));
+
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
+        passwordResetTokens.remove(request.getToken());
+    }
+
+    @Transactional
+    public void changePassword(User user, String currentPassword, String newPassword) {
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new InvalidCredentialsException("Current password is incorrect.");
+        }
+        if (currentPassword.equals(newPassword)) {
+            throw new BadRequestException("New password must be different from the current password.");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
     }
 
     @Transactional
@@ -104,6 +156,9 @@ public class AuthService {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getPhone(), request.getPassword()));
         String token = jwtUtil.generateToken(user);
+        
+        BusinessEventLogger.userLoggedIn(user.getId());
+        
         return AuthResponse.builder()
                 .token(token)
                 .refreshToken(createRefreshToken(user))
@@ -162,7 +217,7 @@ public class AuthService {
 
     public UserProfileResponse getProfile() {
         User user = getCurrentUser();
-        return toProfileResponse(user);
+        return toProfileResponse(user, true);
     }
 
     @Transactional
@@ -195,7 +250,7 @@ public class AuthService {
         }
 
         userRepository.save(user);
-        return toProfileResponse(user);
+        return toProfileResponse(user, true);
     }
 
     private String createRefreshToken(User user) {
@@ -209,13 +264,19 @@ public class AuthService {
         return refreshToken.getToken();
     }
 
+    private record ResetTokenRecord(String phone, Instant createdAt) {}
+
     public UserProfileResponse getProfileById(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new BadRequestException("User not found"));
-        return toProfileResponse(user);
+        return toProfileResponse(user, false);
     }
 
     public UserProfileResponse toProfileResponse(User user) {
+        return toProfileResponse(user, false);
+    }
+
+    public UserProfileResponse toProfileResponse(User user, boolean includeFullPhone) {
         String village = null;
         List<String> skills = Collections.emptyList();
         Integer dailyWage = null;
@@ -238,10 +299,12 @@ public class AuthService {
             }
         }
 
+        String phone = includeFullPhone ? user.getPhone() : PiiMasker.maskPhone(user.getPhone());
+
         return UserProfileResponse.builder()
                 .id(user.getId())
                 .name(user.getName())
-                .phone(user.getPhone())
+                .phone(phone)
                 .role(user.getRole())
                 .village(village)
                 .skills(skills)

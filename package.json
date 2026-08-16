@@ -1,5 +1,15 @@
 {
+  "name": "khetconnect",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "preview": "npm --prefix frontend run preview",
+    "test": "npm --prefix frontend run test",
+    "lint": "npm --prefix frontend run lint"
+  },
   "dependencies": {
-    "firebase": "^12.17.1"
+    "firebase": "^12.17.1",
+    "react-window": "^2.3.0"
   }
 }

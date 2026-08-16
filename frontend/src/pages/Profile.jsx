@@ -7,7 +7,8 @@ import useAuthStore from '../store/authStore'
 import Navbar from '../components/Navbar'
 import BottomNavBar from '../components/BottomNavBar'
 import StarRating from '../components/StarRating'
-import Layout, { Button, InputField, PrimaryButton } from '../components/Layout'
+import Layout, { InputField, PrimaryButton } from '../components/Layout'
+import { mapBackendDetailsToMessages, validateProfileForm } from '../utils/validation'
 
 const SKILLS = ['HARVESTING', 'PLANTING', 'IRRIGATION', 'SPRAYING', 'OTHER']
 
@@ -60,8 +61,7 @@ export default function Profile() {
 
   const save = async () => {
     setErrors({})
-    const fieldErrors = {}
-    if (form.name && form.name.trim().length < 2) fieldErrors.name = t('nameRequired')
+    const fieldErrors = validateProfileForm(form, profile?.role)
 
     if (Object.keys(fieldErrors).length > 0) {
       setErrors(fieldErrors)
@@ -70,7 +70,7 @@ export default function Profile() {
 
     setSaving(true)
     try {
-      const res = await api.put('/auth/profile', form)
+      const res = await api.put('/auth/profile', form, { suppressErrorToast: true })
       const data = unwrap(res)
       setProfile(data)
       updateUser({ ...user, name: data.name })
@@ -79,10 +79,10 @@ export default function Profile() {
         localStorage.setItem('language', form.languagePref)
       }
       setEditing(false)
-      toast.success(t('success'))
+      toast.success('Saved')
     } catch (err) {
-      setErrors(err?.response?.data?.details || {})
-      toast.error(getApiErrorMessage(err, t('error')))
+      setErrors(mapBackendDetailsToMessages(err?.response?.data?.details || {}))
+      toast.error(getApiErrorMessage(err, 'Could not save'))
     } finally {
       setSaving(false)
     }
@@ -92,7 +92,7 @@ export default function Profile() {
     return (
       <Layout>
         <Navbar showNotifications={false} />
-        <div className="p-8 text-center">{t('loading')}</div>
+        <div className="px-3 py-8 sm:px-4 text-center text-slate-300">{t('loading')}</div>
       </Layout>
     )
   }
@@ -102,117 +102,196 @@ export default function Profile() {
   return (
     <Layout>
       <Navbar />
-      <div className="px-4 py-4">
-        <div className="glass-card glass-panel rounded-[32px] border border-cyan-400/10 bg-slate-950/95 p-6 shadow-[0_28px_100px_-50px_rgba(56,189,248,0.55)]">
-          <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 text-3xl font-bold text-white shadow-[0_18px_50px_-20px_rgba(56,189,248,0.55)]">
-            {initials}
+      <div className="px-3 py-6 sm:px-4">
+        <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-violet-500/8 via-slate-950 to-slate-950 p-6 sm:p-8">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(139,92,246,0.15),transparent_30%)]" />
+          <div className="relative z-10 flex flex-col items-center">
+            <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-cyan-400 text-3xl font-bold text-white shadow-[0_18px_50px_-20px_rgba(139,92,246,0.6)]">
+              {initials}
+            </div>
+            <h1 className="mt-4 text-3xl font-bold tracking-[-0.06em] text-white">{profile?.name}</h1>
+            <p className="mt-2 text-sm text-slate-400">{profile?.phone}</p>
+            <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-violet-400/20 bg-violet-500/10 px-4 py-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-violet-400"></span>
+              <span className="text-sm font-semibold text-violet-200">{t(profile?.role?.toLowerCase())}</span>
+            </div>
+            {profile?.village && <p className="mt-3 text-sm text-slate-300">📍 {profile.village}</p>}
+            {profile?.createdAt && (
+              <p className="mt-2 text-xs text-slate-500">
+                {t('memberSince')} {new Date(profile.createdAt).toLocaleDateString()}
+              </p>
+            )}
           </div>
-          <h1 className="mt-4 text-3xl font-bold tracking-tight text-white">{profile.name}</h1>
-          <p className="mt-2 text-sm text-slate-400">{profile.phone}</p>
-          <span className="mt-3 inline-flex items-center rounded-full border border-cyan-400/15 bg-slate-900/80 px-4 py-2 text-sm text-cyan-200">
-            {t(profile.role.toLowerCase())}
-          </span>
-          {profile.village && <p className="mt-3 text-sm text-slate-400">📍 {profile.village}</p>}
-          {profile.createdAt && (
-            <p className="mt-2 text-sm text-slate-500">
-              {t('memberSince')} {new Date(profile.createdAt).toLocaleDateString()}
-            </p>
+        </div>
+
+        {profile && (
+          <div className="mt-8 grid gap-4 sm:grid-cols-3">
+            <div className="rounded-xl border border-white/10 bg-slate-900/50 p-4 sm:p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Rating</p>
+              <div className="mt-3 flex items-baseline gap-2">
+                <p className="text-3xl font-bold text-cyan-400">{Number(profile.ratingAvg).toFixed(1)}</p>
+                <span className="text-xs text-slate-400">/ 5</span>
+              </div>
+              <div className="mt-2"><StarRating value={Number(profile.ratingAvg)} size="sm" /></div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-slate-900/50 p-4 sm:p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Total Jobs</p>
+              <p className="mt-3 text-3xl font-bold text-cyan-400">{profile.totalJobs || 0}</p>
+              <p className="mt-2 text-xs text-slate-400">Completed or ongoing</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-slate-900/50 p-4 sm:p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Reviews</p>
+              <p className="mt-3 text-3xl font-bold text-cyan-400">{profile.ratingCount || 0}</p>
+              <p className="mt-2 text-xs text-slate-400">From verified users</p>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-8">
+          {!editing ? (
+            <button
+              onClick={() => setEditing(true)}
+              className="w-full rounded-xl border border-white/10 bg-slate-900/40 px-6 py-3 font-semibold text-white hover:bg-slate-900/60 transition"
+            >
+              ✏️ Edit Profile
+            </button>
+          ) : (
+            <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-5 sm:p-6 space-y-4">
+              <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-300">
+                <span>Editing your profile</span>
+              </div>
+
+              <InputField
+                label={t('name')}
+                value={form.name}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setForm({ ...form, name: value })
+                  const nextErrors = validateProfileForm({ ...form, name: value }, profile?.role)
+                  setErrors((prev) => ({ ...prev, ...nextErrors, name: nextErrors.name }))
+                }}
+                error={errors.name}
+                required
+              />
+              <InputField
+                label={t('village')}
+                value={form.village}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setForm({ ...form, village: value })
+                  const nextErrors = validateProfileForm({ ...form, village: value }, profile?.role)
+                  setErrors((prev) => ({ ...prev, ...nextErrors, village: nextErrors.village }))
+                }}
+                error={errors.village}
+              />
+
+              <div className="mb-4">
+                <label className="mb-2 block text-sm font-semibold text-slate-300">{t('language')}</label>
+                <select
+                  value={form.languagePref}
+                  onChange={(e) => setForm({ ...form, languagePref: e.target.value })}
+                  className="oracle-input w-full px-4 py-3.5"
+                >
+                  <option value="te">{t('telugu')}</option>
+                  <option value="en">{t('english')}</option>
+                </select>
+              </div>
+
+              {profile?.role === 'LABOURER' && (
+                <>
+                  <div className="mb-4">
+                    <p className="mb-3 text-sm font-semibold text-slate-300">{t('skills')}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {SKILLS.map((skill) => (
+                        <button
+                          key={skill}
+                          type="button"
+                          onClick={() => {
+                            const skills = form.skills.includes(skill)
+                              ? form.skills.filter((s) => s !== skill)
+                              : [...form.skills, skill]
+                            setForm({ ...form, skills })
+                          }}
+                          className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                            form.skills.includes(skill)
+                              ? 'border-cyan-400/50 bg-cyan-500/15 text-cyan-200'
+                              : 'border-white/10 bg-slate-950/50 text-slate-300 hover:border-white/20'
+                          }`}
+                        >
+                          {t(skill.toLowerCase())}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <InputField
+                    label={t('dailyWage')}
+                    type="number"
+                    value={form.dailyWageExpected}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      setForm({ ...form, dailyWageExpected: value })
+                      const nextErrors = validateProfileForm({ ...form, dailyWageExpected: value }, profile?.role)
+                      setErrors((prev) => ({ ...prev, ...nextErrors, dailyWageExpected: nextErrors.dailyWageExpected }))
+                    }}
+                    error={errors.dailyWageExpected}
+                  />
+                </>
+              )}
+
+              <div className="flex flex-col gap-3 pt-4 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => setEditing(false)}
+                  className="flex-1 rounded-lg border border-white/10 bg-slate-900/40 px-4 py-3 font-semibold text-white hover:bg-slate-900/60"
+                >
+                  Cancel
+                </button>
+                <PrimaryButton onClick={save} loading={saving} className="flex-1">
+                  {t('save')}
+                </PrimaryButton>
+              </div>
+            </div>
           )}
         </div>
 
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          <div className="glass-card rounded-[28px] border border-white/10 bg-slate-950/90 p-5 shadow-[0_25px_80px_-35px_rgba(0,0,0,0.75)]">
-            <p className="text-xl font-semibold text-white">{Number(profile.ratingAvg).toFixed(1)}</p>
-            <StarRating value={Number(profile.ratingAvg)} />
-            <p className="mt-2 text-sm text-slate-400">{profile.ratingCount} {t('recentRatings')}</p>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="glass-card rounded-[28px] border border-white/10 bg-slate-950/90 p-5 text-center shadow-[0_25px_80px_-35px_rgba(0,0,0,0.75)]">
-              <p className="text-lg font-bold text-white">{profile.totalJobs}</p>
-              <p className="mt-1 text-xs text-slate-400">{t('totalJobs')}</p>
+        <div className="mt-10">
+          <h2 className="text-2xl font-bold tracking-[-0.05em] text-white">{t('recentRatings')}</h2>
+          <p className="mt-1 text-sm text-slate-400">Feedback from users</p>
+
+          {ratings.length === 0 ? (
+            <div className="mt-4 rounded-xl border border-white/10 bg-slate-900/40 p-8 text-center">
+              <span className="text-4xl">⭐</span>
+              <p className="mt-3 text-slate-400">{t('noRatings')}</p>
             </div>
-            <div className="glass-card rounded-[28px] border border-white/10 bg-slate-950/90 p-5 text-center shadow-[0_25px_80px_-35px_rgba(0,0,0,0.75)]">
-              <p className="text-lg font-bold text-white">{profile.ratingCount}</p>
-              <p className="mt-1 text-xs text-slate-400">{t('avgRating')}</p>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {ratings.slice(0, 5).map((r) => (
+                <div key={r.id} className="rounded-xl border border-white/10 bg-slate-900/40 p-4 sm:p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <StarRating value={r.stars} size="sm" />
+                        <span className="text-sm font-semibold text-slate-200">{r.stars}/5 stars</span>
+                      </div>
+                      <p className="mt-2 text-sm font-semibold text-slate-100">{r.raterName}</p>
+                      {r.comment && <p className="mt-1 text-sm text-slate-300">"{r.comment}"</p>}
+                    </div>
+                    <span className="shrink-0 text-xs text-slate-500">
+                      {formatDistanceToNow(new Date(r.createdAt), { addSuffix: true })}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
+          )}
         </div>
 
-        {editing ? (
-          <div className="mt-4 rounded-xl bg-white p-4 shadow-sm">
-            <InputField label={t('name')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} error={errors.name} />
-            <InputField label={t('village')} value={form.village} onChange={(e) => setForm({ ...form, village: e.target.value })} error={errors.village} />
-            <div className="mb-4">
-              <label className="mb-1 block text-sm font-medium">{t('language')}</label>
-              <select
-                value={form.languagePref}
-                onChange={(e) => setForm({ ...form, languagePref: e.target.value })}
-                className="w-full rounded-lg border px-4 py-3"
-              >
-                <option value="te">{t('telugu')}</option>
-                <option value="en">{t('english')}</option>
-              </select>
-            </div>
-            {profile.role === 'LABOURER' && (
-              <>
-                <p className="mb-2 text-sm font-medium">{t('skills')}</p>
-                <div className="mb-4 flex flex-wrap gap-2">
-                  {SKILLS.map((skill) => (
-                    <button
-                      key={skill}
-                      type="button"
-                      onClick={() => {
-                        const skills = form.skills.includes(skill)
-                          ? form.skills.filter((s) => s !== skill)
-                          : [...form.skills, skill]
-                        setForm({ ...form, skills })
-                      }}
-                      className={`rounded-full px-3 py-1 text-sm ${
-                        form.skills.includes(skill) ? 'bg-primary text-white' : 'border'
-                      }`}
-                    >
-                      {t(skill.toLowerCase())}
-                    </button>
-                  ))}
-                </div>
-                <InputField
-                  label={t('dailyWage')}
-                  type="number"
-                  value={form.dailyWageExpected}
-                  onChange={(e) => setForm({ ...form, dailyWageExpected: e.target.value })}
-                />
-              </>
-            )}
-            <div className="flex gap-2">
-              <PrimaryButton onClick={() => setEditing(false)} className="!bg-gray-500">{t('cancel')}</PrimaryButton>
-              <PrimaryButton onClick={save} loading={saving}>{t('save')}</PrimaryButton>
-            </div>
-          </div>
-        ) : (
-          <PrimaryButton onClick={() => setEditing(true)} className="mt-4">{t('editProfile')}</PrimaryButton>
-        )}
-
-        <h2 className="mb-3 mt-6 font-semibold">{t('recentRatings')}</h2>
-        {ratings.length === 0 ? (
-          <p className="text-gray-500">{t('noRatings')}</p>
-        ) : (
-          <div className="space-y-3">
-            {ratings.slice(0, 5).map((r) => (
-              <div key={r.id} className="rounded-xl bg-white p-4 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <StarRating value={r.stars} size="sm" />
-                  <span className="text-xs text-gray-500">
-                    {formatDistanceToNow(new Date(r.createdAt), { addSuffix: true })}
-                  </span>
-                </div>
-                <p className="mt-1 text-sm font-medium">{r.raterName}</p>
-                {r.comment && <p className="text-sm text-gray-600">{r.comment}</p>}
-              </div>
-            ))}
-          </div>
-        )}
-
-        <Button onClick={logout} variant="danger" className="mt-6">{t('logout')}</Button>
+        <button
+          onClick={logout}
+          className="mt-10 w-full rounded-lg border border-rose-400/30 bg-rose-500/12 px-6 py-3 font-semibold text-rose-200 hover:bg-rose-500/20 transition"
+        >
+          🚪 {t('logout')}
+        </button>
       </div>
       <BottomNavBar />
     </Layout>

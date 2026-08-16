@@ -38,4 +38,5 @@ public class JobResponse {
     private Integer pendingCount;
     private ApplicationStatus myApplicationStatus;
     private List<ApplicantResponse> applicants;
+    private Boolean ratedByCurrentUser;
 }

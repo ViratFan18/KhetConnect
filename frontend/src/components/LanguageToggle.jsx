@@ -1,3 +1,4 @@
+import React from 'react'
 import { useTranslation } from 'react-i18next'
 
 export default function LanguageToggle() {
@@ -17,9 +18,9 @@ export default function LanguageToggle() {
       type="button"
       onClick={toggle}
       aria-label={isTelugu ? 'Switch to English' : 'తెగు నుండి ఇంగ్లీష్‌కు మార్చండి'}
-      className="inline-flex items-center rounded-full border border-primary/30 bg-white px-3 py-1.5 text-sm font-semibold text-primary shadow-sm transition hover:bg-primary/5"
+      className="inline-flex items-center rounded-full border border-slate-600 bg-slate-900/90 px-3 py-1.5 text-sm font-semibold text-slate-100 shadow-sm transition hover:border-slate-500 hover:bg-slate-800"
     >
-      <span className="mr-2 text-xs uppercase tracking-wide">{isTelugu ? 'EN' : 'TE'}</span>
+      <span className="mr-2 text-[10px] uppercase tracking-[0.16em] text-cyan-300">{isTelugu ? 'EN' : 'TE'}</span>
       <span>{isTelugu ? 'English' : 'తెలుగు'}</span>
     </button>
   )

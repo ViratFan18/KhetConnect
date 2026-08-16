@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (optional, for production - H2 used in development)
+  # postgres:
+  #   image: postgres:16-alpine
+  #   environment:
+  #     POSTGRES_USER: ${DB_USER:-khetconnect}
+  #     POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+  #     POSTGRES_DB: ${DB_NAME:-khetconnect}
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U khetconnect"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+  # Spring Boot Backend
+  backend:
+    build:
+      context: ./backend/backend
+      dockerfile: Dockerfile
+    container_name: khetconnect-backend
+    environment:
+      # Database (using embedded H2 for development, can switch to Postgres)
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.H2Dialect
+      SPRING_H2_CONSOLE_ENABLED: 'true'
+      SPRING_DATASOURCE_URL: jdbc:h2:mem:testdb
+      SPRING_DATASOURCE_DRIVERCLASSNAME: org.h2.Driver
+      
+      # Server configuration
+      SERVER_PORT: 8080
+      SERVER_SERVLET_CONTEXT_PATH: /api
+      
+      # Spring profiles
+      SPRING_PROFILES_ACTIVE: dev
+      
+      # Logging
+      LOGGING_LEVEL_ROOT: INFO
+      LOGGING_LEVEL_KHETCONNECT: DEBUG
+      
+      # Firebase (set via .env file)
+      KHETCONNECT_FCM_ENABLED: ${FCM_ENABLED:-false}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-}
+      
+      # CORS
+      KHETCONNECT_CORS_ALLOWED_ORIGINS: 'http://localhost:5173,http://localhost:3000,http://frontend:80'
+    
+    ports:
+      - "8080:8080"
+    
+    volumes:
+      - ./backend/backend/src:/app/src
+      - backend_logs:/app/logs
+      - backend_data:/app/data
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    networks:
+      - khetconnect
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: khetconnect-frontend
+    environment:
+      # API endpoint
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8080/api}
+    
+    ports:
+      - "80:80"
+    
+    volumes:
+      - ./frontend/src:/usr/share/nginx/html/src
+      - ./frontend/nginx.conf:/etc/nginx/nginx.conf:ro
+    
+    depends_on:
+      backend:
+        condition: service_healthy
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    networks:
+      - khetconnect
+
+volumes:
+  backend_logs:
+  backend_data:
+  # postgres_data:
+
+networks:
+  khetconnect:
+    driver: bridge

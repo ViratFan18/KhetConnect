@@ -15,5 +15,6 @@ public class RatingRequest {
     @NotNull @Min(1) @Max(5)
     private Integer stars;
 
+    @Size(max = 200, message = "Comment must be at most 200 characters")
     private String comment;
 }

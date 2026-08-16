@@ -5,6 +5,7 @@ import khetconnect.backend.dto.RatingResponse;
 import khetconnect.backend.entity.*;
 import khetconnect.backend.exception.BadRequestException;
 import khetconnect.backend.exception.ResourceNotFoundException;
+import khetconnect.backend.exception.DuplicateRatingException;
 import khetconnect.backend.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,8 +27,14 @@ public class RatingService {
 
     @Transactional
     public RatingResponse submitRating(Long raterId, RatingRequest request) {
-        if (ratingRepository.existsByRaterIdAndJobId(raterId, request.getJobId())) {
-            throw new BadRequestException("You have already rated this job");
+        // Use pessimistic lock to prevent duplicate ratings in concurrent scenarios
+        // This ensures that two simultaneous rating requests cannot both succeed
+        if (ratingRepository.findByRaterIdAndJobIdWithLock(raterId, request.getJobId()).isPresent()) {
+            throw new DuplicateRatingException("You have already rated this job");
+        }
+
+        if (request.getComment() != null && request.getComment().trim().length() > 200) {
+            throw new BadRequestException("Comment must be at most 200 characters");
         }
 
         Job job = jobRepository.findById(request.getJobId())
@@ -77,30 +84,42 @@ public class RatingService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
     public List<RatingResponse> getRatingsForUser(Long userId) {
         return ratingRepository.findByRateeIdOrderByCreatedAtDesc(userId).stream()
                 .map(r -> RatingResponse.builder()
                         .id(r.getId())
-                        .jobId(r.getJob().getId())
+                        .jobId(r.getJob() != null ? r.getJob().getId() : null)
                         .stars(r.getStars())
                         .comment(r.getComment())
-                        .raterName(r.getRater().getName())
+                        .raterName(resolveRaterName(r))
                         .createdAt(r.getCreatedAt())
                         .build())
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<RatingResponse> getRatingsGivenByUser(Long raterId) {
         return ratingRepository.findByRaterIdOrderByCreatedAtDesc(raterId).stream()
                 .map(r -> RatingResponse.builder()
                         .id(r.getId())
-                        .jobId(r.getJob().getId())
+                        .jobId(r.getJob() != null ? r.getJob().getId() : null)
                         .stars(r.getStars())
                         .comment(r.getComment())
-                        .raterName(r.getRater().getName())
+                        .raterName(resolveRaterName(r))
                         .createdAt(r.getCreatedAt())
                         .build())
                 .collect(Collectors.toList());
+    }
+
+    private String resolveRaterName(Rating rating) {
+        User rater = rating.getRater();
+        if (rater == null || rater.getId() == null) {
+            return "User";
+        }
+        return userRepository.findById(rater.getId())
+                .map(User::getName)
+                .orElseGet(() -> rater.getName() != null ? rater.getName() : "User");
     }
 
     private void recalculateRating(Long rateeId) {

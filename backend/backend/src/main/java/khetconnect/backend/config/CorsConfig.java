@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 @Configuration
 public class CorsConfig {
 
-    @Value("${khetconnect.cors.allowed-origins}")
+    @Value("${khetconnect.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000}")
     private String allowedOrigins;
 
     @Bean
@@ -24,11 +24,18 @@ public class CorsConfig {
                 .map(String::trim)
                 .filter(origin -> !origin.isBlank())
                 .collect(Collectors.toList());
+
+        if (origins.isEmpty()) {
+            origins = List.of("http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000");
+        }
+
         config.setAllowedOrigins(origins);
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Request-Id"));
         config.setAllowCredentials(true);
-        config.setExposedHeaders(List.of("Authorization", "X-Request-Id"));
+        config.setExposedHeaders(List.of("Authorization", "X-Request-Id", "X-RateLimit-Limit", "X-RateLimit-Remaining", "Retry-After"));
+        config.setMaxAge(3600L);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;

@@ -14,4 +14,4 @@ const paras = xml.split(/<w:p[ >]/).slice(1).map((p) => {
   return ts.join('');
 }).filter(Boolean);
 fs.writeFileSync(path.join(__dirname, 'blueprint.txt'), paras.join('\n'), 'utf8');
-console.log(paras.join('\n'));
+// Debug log removed: file now writes `blueprint.txt` without console output

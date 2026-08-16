@@ -1,10 +1,12 @@
 package khetconnect.backend.util;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 public final class GeoUtil {
 
     private static final double EARTH_RADIUS_KM = 6371.0;
+    private static final double LOCATION_BUCKET_DEGREES = 0.01; // ~1.1km at the equator
 
     private GeoUtil() {}
 
@@ -23,5 +25,18 @@ public final class GeoUtil {
 
     public static boolean withinKm(BigDecimal lat1, BigDecimal lng1, BigDecimal lat2, BigDecimal lng2, double km) {
         return distanceKm(lat1, lng1, lat2, lng2) <= km;
+    }
+
+    public static String locationBucket(BigDecimal lat, BigDecimal lng) {
+        if (lat == null || lng == null) {
+            return "unknown";
+        }
+
+        BigDecimal bucketLat = BigDecimal.valueOf(Math.round(lat.doubleValue() / LOCATION_BUCKET_DEGREES) * LOCATION_BUCKET_DEGREES)
+                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal bucketLng = BigDecimal.valueOf(Math.round(lng.doubleValue() / LOCATION_BUCKET_DEGREES) * LOCATION_BUCKET_DEGREES)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        return bucketLat + ":" + bucketLng;
     }
 }

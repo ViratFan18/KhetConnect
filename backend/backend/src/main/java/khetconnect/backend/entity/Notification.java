@@ -6,7 +6,10 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "notifications")
+@Table(name = "notifications", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"user_id", "job_id", "type"}, 
+                name = "uk_notifications_user_job_type")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -21,6 +24,10 @@ public class Notification {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "job_id")
+    private Job job;
 
     private String title;
 

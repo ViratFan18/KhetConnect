@@ -6,8 +6,11 @@ export default function Unauthorized() {
 
   return (
     <ErrorPage
+      type="unauthorized"
       title={t('unauthorizedTitle')}
+      subtitle="Error 401"
       message={t('unauthorizedMessage')}
+      details="You need to be logged in to access this resource."
       buttonText={t('goHome')}
       link="/"
     />

@@ -1,56 +1,52 @@
 package khetconnect.backend.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import khetconnect.backend.dto.ApiResponse;
 import khetconnect.backend.dto.NotificationResponse;
-import khetconnect.backend.entity.Notification;
 import khetconnect.backend.entity.User;
-import khetconnect.backend.repository.NotificationRepository;
 import khetconnect.backend.service.AuthService;
+import khetconnect.backend.service.NotificationService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/notifications")
 @RequiredArgsConstructor
+@Tag(name = "Notifications", description = "User notifications and messaging endpoints")
 public class NotificationController {
 
-    private final NotificationRepository notificationRepository;
+    private final NotificationService notificationService;
     private final AuthService authService;
 
     @GetMapping
+    @SecurityRequirement(name = "bearer-jwt")
+    @Operation(summary = "Get notifications", description = "Retrieve all notifications for the current user")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Notifications retrieved successfully"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Server error")
+    })
     public ApiResponse<List<NotificationResponse>> getNotifications() {
         User user = authService.getCurrentUser();
-        List<NotificationResponse> list = notificationRepository.findByUserIdOrderByCreatedAtDesc(user.getId())
-                .stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
-        return ApiResponse.ok(list);
+        return ApiResponse.ok(notificationService.getNotifications(user.getId()));
     }
 
     @PutMapping("/read")
-    @Transactional
+    @SecurityRequirement(name = "bearer-jwt")
+    @Operation(summary = "Mark all notifications as read", description = "Mark all unread notifications as read for current user")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "All notifications marked as read"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "Server error")
+    })
     public ApiResponse<Void> markAllRead() {
         User user = authService.getCurrentUser();
-        notificationRepository.findByUserIdOrderByCreatedAtDesc(user.getId())
-                .forEach(n -> {
-                    n.setRead(true);
-                    notificationRepository.save(n);
-                });
+        notificationService.markAllAsRead(user.getId());
         return ApiResponse.ok("Marked as read", null);
-    }
-
-    private NotificationResponse toResponse(Notification n) {
-        return NotificationResponse.builder()
-                .id(n.getId())
-                .title(n.getTitle())
-                .body(n.getBody())
-                .type(n.getType())
-                .read(n.getRead())
-                .createdAt(n.getCreatedAt())
-                .build();
     }
 }

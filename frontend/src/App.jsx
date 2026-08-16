@@ -19,6 +19,8 @@ import Profile from './pages/Profile'
 import NotificationsPage from './pages/NotificationsPage'
 import ServerError from './pages/ServerError'
 import Unauthorized from './pages/Unauthorized'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 
 function HistoryRouter() {
   const { user } = useAuthStore()
@@ -47,6 +49,8 @@ export default function App() {
           <Route path="/" element={<HomeRedirect />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/farmer" element={<ProtectedRoute role="FARMER"><FarmerDashboard /></ProtectedRoute>} />
           <Route path="/labourer" element={<ProtectedRoute role="LABOURER"><LabourDashboard /></ProtectedRoute>} />
           <Route path="/post-job" element={<ProtectedRoute role="FARMER"><PostJob /></ProtectedRoute>} />

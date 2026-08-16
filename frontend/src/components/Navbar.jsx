@@ -9,23 +9,24 @@ export default function Navbar({ showNotifications = true }) {
   const { user, logout } = useAuthStore()
 
   return (
-    <header className="sticky top-0 z-30 border-b border-white/10 bg-slate-950/95 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4">
+    <header className="oracle-bar">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-3 py-3 sm:px-4">
         <Link
           to={user?.role === 'FARMER' ? '/farmer' : '/labourer'}
-          className="flex items-center gap-3 rounded-[28px] border border-cyan-400/10 bg-slate-900/80 px-4 py-3 shadow-[0_20px_60px_-32px_rgba(56,189,248,0.65)] transition hover:border-cyan-300/40"
+          className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/3 px-3 py-2.5 transition hover:border-violet-400/30"
         >
-          <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 text-lg shadow-[0_14px_30px_-16px_rgba(56,189,248,0.45)]">🌾</span>
-          <span className="text-lg font-semibold text-white tracking-tight">{t('appName')}</span>
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-cyan-400 text-base shadow-[0_16px_28px_-14px_rgba(139,92,246,0.9)]">K</span>
+          <span className="display-heading text-base font-bold tracking-[-0.04em] text-[var(--kc-text-primary)] sm:text-lg">{t('appName')}</span>
         </Link>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-2 sm:gap-3">
           {showNotifications && user && <NotificationBell />}
           <LanguageToggle />
           {user && (
             <button
               type="button"
               onClick={logout}
-              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/10 hover:text-white"
+              className="rounded-xl border border-slate-600 bg-slate-900/90 px-3 py-2 text-xs font-semibold text-slate-100 shadow-sm transition hover:border-slate-500 hover:bg-slate-800 sm:text-sm"
             >
               {t('logout')}
             </button>

@@ -58,6 +58,21 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.FORBIDDEN, "ACCESS_DENIED", "Access denied");
     }
 
+    @ExceptionHandler(JobAlreadyFullException.class)
+    public ResponseEntity<ErrorResponse> handleJobAlreadyFull(JobAlreadyFullException ex) {
+        return build(HttpStatus.CONFLICT, "JOB_ALREADY_FULL", ex.getMessage());
+    }
+
+    @ExceptionHandler(AlreadyAppliedException.class)
+    public ResponseEntity<ErrorResponse> handleAlreadyApplied(AlreadyAppliedException ex) {
+        return build(HttpStatus.CONFLICT, "ALREADY_APPLIED", ex.getMessage());
+    }
+
+    @ExceptionHandler(DuplicateRatingException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateRating(DuplicateRatingException ex) {
+        return build(HttpStatus.CONFLICT, "DUPLICATE_RATING", ex.getMessage());
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
