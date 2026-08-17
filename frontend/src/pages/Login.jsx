@@ -51,7 +51,7 @@ export default function Login() {
     setErrors({})
     setLoading(true)
     try {
-      const res = await api.post('/auth/login', { phone: normalizedPhone, password })
+      const res = await api.post('/api/v1/auth/login', { phone: normalizedPhone, password })
       const data = unwrap(res)
       login(data.token, { id: data.userId, role: data.role, name: data.name })
       showAppToast(t('loginSuccess'), 'success')
