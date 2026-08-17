@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 @Configuration
 public class CorsConfig {
 
-    @Value("${khetconnect.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000}")
+    @Value("${khetconnect.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,https://*.vercel.app}")
     private String allowedOrigins;
 
     @Bean
@@ -26,12 +26,12 @@ public class CorsConfig {
                 .collect(Collectors.toList());
 
         if (origins.isEmpty()) {
-            origins = List.of("http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000");
+            origins = List.of("http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000", "https://*.vercel.app");
         }
 
-        config.setAllowedOrigins(origins);
+        config.setAllowedOriginPatterns(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Request-Id"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Request-Id", "Origin"));
         config.setAllowCredentials(true);
         config.setExposedHeaders(List.of("Authorization", "X-Request-Id", "X-RateLimit-Limit", "X-RateLimit-Remaining", "Retry-After"));
         config.setMaxAge(3600L);
