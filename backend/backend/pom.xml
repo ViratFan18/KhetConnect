@@ -17,6 +17,7 @@
 		<java.version>17</java.version>
 		<jjwt.version>0.12.5</jjwt.version>
 		<lombok.version>1.18.46</lombok.version>
+		<docker.image.name>khetconnect-backend</docker.image.name>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -131,6 +132,9 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
+					<image>
+						<name>${docker.image.name}</name>
+					</image>
 					<excludes>
 						<exclude>
 							<groupId>org.projectlombok</groupId>

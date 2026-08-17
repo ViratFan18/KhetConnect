@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: khetconnect-backend
+    runtime: docker
+    region: oregon  # or your preferred region
+    plan: standard  # Use 'standard' (at least 1GB RAM) or upgrade if needed
+    numInstances: 1
+    
+    # Environment variables from Render dashboard or .env
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: production
+      - key: SERVER_PORT
+        value: 8080
+      
+      # Database (set via Render dashboard for security)
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: khetconnect-db
+          property: connectionString
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: khetconnect-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: khetconnect-db
+          property: password
+      
+      # Security (set via Render environment secrets, not hardcoded)
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: JWT_EXPIRY_MS
+        value: 86400000
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://your-frontend.com
+      - key: KHETCONNECT_FCM_ENABLED
+        value: 'false'
+
+    # Health check
+    healthCheckPath: /actuator/health
+    healthCheckTimeout: 30
+    
+    # Auto-deploy on push
+    autoDeploy: true

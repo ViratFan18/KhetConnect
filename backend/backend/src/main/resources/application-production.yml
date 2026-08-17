@@ -31,12 +31,13 @@ spring:
         order_updates: true
         order_inserts: true
   flyway:
-    enabled: true
+    enabled: false
     locations: classpath:db/migration
     baseline-on-migrate: true
 
 server:
   port: ${SERVER_PORT:8080}
+  address: 0.0.0.0
   compression:
     enabled: true
     min-response-size: 1024
@@ -51,16 +52,8 @@ logging:
   level:
     root: WARN
     khetconnect: INFO
-  file:
-    name: ${LOGGING_FILE:/var/log/khetconnect/spring.log}
   pattern:
-    file: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n'
     console: '%d{HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n'
-  logback:
-    rollingpolicy:
-      max-file-size: 10MB
-      max-history: 30
-      total-size-cap: 1GB
 
 khetconnect:
   jwt:
@@ -87,4 +80,4 @@ management:
       prometheus:
         enabled: true
   server:
-    port: 9090
+    port: ${MANAGEMENT_SERVER_PORT:${SERVER_PORT:8080}}
